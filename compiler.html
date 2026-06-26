@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>MindAR Compiler</title>
+    <script src="libs/aframe.min.js"></script>
+    <script src="libs/mindar-image-aframe.prod.js"></script>
+    <style>
+      body { font-family: sans-serif; padding: 2rem; background: #111; color: white; }
+      h1 { margin-bottom: 1rem; }
+      button { padding: 10px 20px; margin-top: 1rem; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 6px; font-size: 1rem; }
+      #status { margin-top: 1rem; color: #aaa; font-size: 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>MindAR Target Compiler</h1>
+    <p>Select your mural image to compile into a .mind file</p>
+    <input type="file" id="imageInput" accept="image/*" />
+    <br />
+    <button id="compileBtn">Compile</button>
+    <div id="status"></div>
+
+    <script>
+      document.getElementById('compileBtn').addEventListener('click', async function() {
+        const file = document.getElementById('imageInput').files[0];
+        if (!file) { alert('Please select an image first'); return; }
+
+        document.getElementById('status').innerText = 'Compiling... please wait (30-60 seconds)';
+
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        await new Promise(r => img.onload = r);
+
+        const compiler = new MINDAR.IMAGE.Compiler();
+        await compiler.compileImageTargets([img], (progress) => {
+          document.getElementById('status').innerText = `Compiling... ${progress.toFixed(0)}%`;
+        });
+
+        const exportedBuffer = await compiler.exportData();
+        const blob = new Blob([exportedBuffer]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'targets.mind';
+        a.click();
+
+        document.getElementById('status').innerText = 'Done! targets.mind downloaded.';
+      });
+    </script>
