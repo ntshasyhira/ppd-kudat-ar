@@ -9,8 +9,6 @@
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { overflow: hidden; font-family: sans-serif; background: #000; }
-
-      /* Preview mode background */
       #preview-bg {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         z-index: 1;
@@ -18,8 +16,6 @@
         display: none;
       }
       #preview-bg.visible { display: block; }
-
-      /* Top bar */
       #topbar {
         position: fixed; top: 0; left: 0; right: 0;
         z-index: 100;
@@ -40,8 +36,6 @@
       .tab-pekan { background: #A32D2D; color: white; }
       .tab-sikuati { background: #BA5D0B; color: white; }
       .tab-matunggong { background: #BA7517; color: white; }
-
-      /* Pins overlay */
       #pins-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         z-index: 50; pointer-events: none;
@@ -64,8 +58,6 @@
       .pin-matunggong { background: #BA7517; }
       .pin.hidden { display: none; }
       .pin-cluster { width: 28px; height: 28px; font-size: 11px; border-width: 2.5px; }
-
-      /* Zone list card */
       #zone-list-card {
         position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
         background: white; border-radius: 20px 20px 0 0;
@@ -75,8 +67,6 @@
         max-height: 75vh; overflow-y: auto;
       }
       #zone-list-card.visible { transform: translateY(0); }
-
-      /* Info card */
       #info-card {
         position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
         background: white; border-radius: 20px 20px 0 0;
@@ -86,7 +76,6 @@
         max-height: 70vh; overflow-y: auto;
       }
       #info-card.visible { transform: translateY(0); }
-
       .card-handle {
         width: 40px; height: 4px; background: #ddd;
         border-radius: 2px; margin: 0 auto 14px;
@@ -117,7 +106,6 @@
         background: #1a73e8; color: white; border: none;
         border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer;
       }
-
       .zone-list-header {
         display: flex; justify-content: space-between;
         align-items: center; margin-bottom: 10px;
@@ -135,8 +123,6 @@
       .school-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
       .school-name { font-size: 13px; color: #1a1a1a; flex: 1; }
       .school-code { font-size: 11px; color: #888; }
-
-      /* Detecting screen */
       #detecting-screen {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 300; background: rgba(0,0,0,0.55);
@@ -150,28 +136,20 @@
       .detect-icon { font-size: 32px; margin-bottom: 8px; }
       .detect-title { font-size: 15px; font-weight: 600; }
       .detect-sub { font-size: 11px; color: #bbb; margin-top: 4px; }
-
-      /* Overlay backdrop */
       #overlay {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 150; display: none;
       }
       #overlay.visible { display: block; }
-
-      /* Preview mode toggle button */
       #preview-btn {
-        position: fixed; bottom: 20px; right: 16px; z-index: 99;
+        position: fixed; bottom: 20px; right: 16px; z-index: 400;
         background: rgba(0,0,0,0.6); color: white; border: none;
         border-radius: 20px; padding: 6px 12px; font-size: 11px; cursor: pointer;
       }
     </style>
   </head>
   <body>
-
-    <!-- Preview background (desktop testing) -->
     <div id="preview-bg"></div>
-
-    <!-- Top bar -->
     <div id="topbar">
       <h1>🗺️ Sekolah Daerah Kudat</h1>
       <div id="filter-tabs">
@@ -182,17 +160,13 @@
         <button class="tab tab-matunggong" onclick="filterZone('matunggong')">Matunggong</button>
       </div>
     </div>
-
-    <!-- Detecting screen -->
-    <div id="detecting-screen">
+    <div id="detecting-screen" class="hidden">
       <div class="detect-box">
         <div class="detect-icon">📷</div>
         <div class="detect-title">Mengesan peta...</div>
         <div class="detect-sub">Pastikan keseluruhan peta kelihatan</div>
       </div>
     </div>
-
-    <!-- AR Scene -->
     <a-scene
       mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: true;"
       color-space="sRGB" renderer="colorManagement: true"
@@ -201,14 +175,8 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       <a-entity mindar-image-target="targetIndex: 0" id="mural-target"></a-entity>
     </a-scene>
-
-    <!-- Pins -->
     <div id="pins-overlay"></div>
-
-    <!-- Overlay backdrop -->
     <div id="overlay" onclick="closeAll()"></div>
-
-    <!-- Zone list -->
     <div id="zone-list-card">
       <div class="card-handle"></div>
       <div class="zone-list-header">
@@ -218,8 +186,6 @@
       <div class="zone-ketua" id="zone-ketua"></div>
       <div id="school-list"></div>
     </div>
-
-    <!-- School info card -->
     <div id="info-card">
       <div class="card-handle"></div>
       <div class="card-header">
@@ -241,10 +207,7 @@
       </div>
       <button id="maps-btn" onclick="openMaps()">📍 Buka dalam Google Maps</button>
     </div>
-
-    <!-- Preview toggle -->
-    <button id="preview-btn" onclick="togglePreview()">🗺️ Pratonton</button>
-
+    <button id="preview-btn" onclick="togglePreview()">📷 AR Mode</button>
     <script>
       const zones = {
         pulau:      { name:"Pulau",      color:"#3B6D11", ketua:"KASMAN BIN PANGALAMAN" },
@@ -252,13 +215,11 @@
         sikuati:    { name:"Sikuati",    color:"#BA5D0B", ketua:"INTAN MAHIRAH BINTI ABDUL RAHMAN" },
         matunggong: { name:"Matunggong", color:"#BA7517", ketua:"HASRIANSHAH OMAR" }
       };
-
       const schools = [
-        // PULAU
         { id:1,  name:"SK Balambangan Banggi",      code:"XBA5002", zone:"pulau",      x:62, y:22, maps:"https://maps.google.com/?q=SK+Balambangan+Banggi" },
         { id:2,  name:"SK Laksian",                 code:"XBA5003", zone:"pulau",      x:66, y:18, maps:"https://maps.google.com/?q=SK+Laksian+Banggi" },
         { id:3,  name:"SK Dogoton",                 code:"XBA5004", zone:"pulau",      x:70, y:25, maps:"https://maps.google.com/?q=SK+Dogoton" },
-        { id:4,  name:"SK Semayan Banggi",           code:"XBA5011", zone:"pulau",      x:74, y:20, maps:"https://maps.google.com/?q=SK+Semayan+Banggi" },
+        { id:4,  name:"SK Semayan Banggi",          code:"XBA5011", zone:"pulau",      x:74, y:20, maps:"https://maps.google.com/?q=SK+Semayan+Banggi" },
         { id:5,  name:"SK Kapitangan",              code:"XBA5014", zone:"pulau",      x:78, y:15, maps:"https://maps.google.com/?q=SK+Kapitangan" },
         { id:6,  name:"SK Karakit Banggi",          code:"XBA5015", zone:"pulau",      x:82, y:22, maps:"https://maps.google.com/?q=SK+Karakit+Banggi" },
         { id:7,  name:"SK Batu Layar",              code:"XBA5016", zone:"pulau",      x:86, y:18, maps:"https://maps.google.com/?q=SK+Batu+Layar" },
@@ -270,7 +231,6 @@
         { id:13, name:"SK Sabur",                   code:"XBA5095", zone:"pulau",      x:66, y:28, maps:"https://maps.google.com/?q=SK+Sabur+Banggi" },
         { id:14, name:"SK Pulau Tigabu",            code:"XBA5097", zone:"pulau",      x:90, y:42, maps:"https://maps.google.com/?q=SK+Pulau+Tigabu+Banggi" },
         { id:15, name:"SMK Banggi",                 code:"XEA5021", zone:"pulau",      x:78, y:22, maps:"https://maps.google.com/?q=SMK+Banggi" },
-        // PEKAN
         { id:16, name:"SK Bangau Kudat",            code:"XBA5005", zone:"pekan",      x:44, y:22, maps:"https://maps.google.com/?q=SK+Bangau+Kudat" },
         { id:17, name:"SK Pekan Kudat II",          code:"XBA5007", zone:"pekan",      x:50, y:25, maps:"https://maps.google.com/?q=SK+Pekan+Kudat+II" },
         { id:18, name:"SK Gumandang",               code:"XBA5010", zone:"pekan",      x:54, y:18, maps:"https://maps.google.com/?q=SK+Gumandang+Kudat" },
@@ -296,7 +256,6 @@
         { id:38, name:"SMK Abdul Rahim",            code:"XEE5019", zone:"pekan",     x:60, y:42, maps:"https://maps.google.com/?q=SMK+Abdul+Rahim+Kudat" },
         { id:39, name:"SMK Lok Yuk Kudat",          code:"XFE5036", zone:"pekan",     x:56, y:45, maps:"https://maps.google.com/?q=SMK+Lok+Yuk+Kudat" },
         { id:40, name:"SMK St Peter Kudat",         code:"XFE5066", zone:"pekan",     x:62, y:45, maps:"https://maps.google.com/?q=SMK+St+Peter+Kudat" },
-        // SIKUATI
         { id:41, name:"SK Barambangon",             code:"XBA5006", zone:"sikuati",   x:22, y:38, maps:"https://maps.google.com/?q=SK+Barambangon+Kudat" },
         { id:42, name:"SK Kg Minyak",               code:"XBA5013", zone:"sikuati",   x:26, y:42, maps:"https://maps.google.com/?q=SK+Kampung+Minyak+Kudat" },
         { id:43, name:"SK Limau-Limauan",           code:"XBA5024", zone:"sikuati",   x:44, y:52, maps:"https://maps.google.com/?q=SK+Limau+Limauan+Kudat" },
@@ -314,7 +273,6 @@
         { id:55, name:"SMK Sikuati",                code:"XEA5004", zone:"sikuati",   x:20, y:42, maps:"https://maps.google.com/?q=SMK+Sikuati" },
         { id:56, name:"SMK Sikuati II",             code:"XEA5025", zone:"sikuati",   x:24, y:52, maps:"https://maps.google.com/?q=SMK+Sikuati+II" },
         { id:57, name:"Kolej Vokasional Kudat",     code:"XHA5002", zone:"sikuati",   x:34, y:45, maps:"https://maps.google.com/?q=Kolej+Vokasional+Kudat" },
-        // MATUNGGONG
         { id:58, name:"SK Pata",                    code:"XBA5008", zone:"matunggong", x:20, y:68, maps:"https://maps.google.com/?q=SK+Pata+Kudat" },
         { id:59, name:"SK Indarason Laut",          code:"XBA5009", zone:"matunggong", x:26, y:75, maps:"https://maps.google.com/?q=SK+Indarason+Laut+Kudat" },
         { id:60, name:"SK Matunggong",              code:"XBA5040", zone:"matunggong", x:32, y:80, maps:"https://maps.google.com/?q=SK+Matunggong+Kudat" },
@@ -329,12 +287,9 @@
         { id:69, name:"SMK Pinawantai",             code:"XEA5022", zone:"matunggong", x:22, y:78, maps:"https://maps.google.com/?q=SMK+Pinawantai+Kudat" },
         { id:70, name:"SMK Matunggong",             code:"XEA5024", zone:"matunggong", x:36, y:86, maps:"https://maps.google.com/?q=SMK+Matunggong+Kudat" },
       ];
-
-      const CLUSTER_THRESHOLD = 6; // % distance to cluster pins
+      const CLUSTER_THRESHOLD = 6;
       let currentSchool = null;
-      let previewMode = false;
-
-      // ── CLUSTERING ──
+      let previewMode = true;
       function clusterPins(filtered) {
         const clusters = [];
         const used = new Set();
@@ -346,8 +301,7 @@
             if (i === j || used.has(t.id)) return;
             const dx = s.x - t.x, dy = s.y - t.y;
             if (Math.sqrt(dx*dx + dy*dy) < CLUSTER_THRESHOLD) {
-              group.push(t);
-              used.add(t.id);
+              group.push(t); used.add(t.id);
             }
           });
           const cx = group.reduce((a,p) => a+p.x,0)/group.length;
@@ -356,14 +310,11 @@
         });
         return clusters;
       }
-
-      // ── BUILD PINS ──
       function buildPins(filter = 'all') {
         const overlay = document.getElementById('pins-overlay');
         overlay.innerHTML = '';
         const filtered = filter === 'all' ? schools : schools.filter(s => s.zone === filter);
         const clusters = clusterPins(filtered);
-
         clusters.forEach(cluster => {
           const pin = document.createElement('div');
           const isCluster = cluster.schools.length > 1;
@@ -371,10 +322,7 @@
           pin.style.left = cluster.x + '%';
           pin.style.top = cluster.y + '%';
           pin.innerHTML = isCluster ? cluster.schools.length : '●';
-          pin.title = isCluster
-            ? `${cluster.schools.length} sekolah`
-            : cluster.schools[0].name;
-
+          pin.title = isCluster ? `${cluster.schools.length} sekolah` : cluster.schools[0].name;
           pin.addEventListener('click', (e) => {
             e.stopPropagation();
             if (isCluster) showZoneList(cluster.zone, cluster.schools);
@@ -383,16 +331,12 @@
           overlay.appendChild(pin);
         });
       }
-
-      // ── FILTER ──
       function filterZone(zone) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-${zone === 'all' ? 'all' : zone}`).classList.add('active');
         closeAll();
         buildPins(zone);
       }
-
-      // ── ZONE LIST ──
       function showZoneList(zone, list) {
         const zoneInfo = zones[zone];
         document.getElementById('zone-list-title').textContent = `Zon ${zoneInfo.name}`;
@@ -416,8 +360,6 @@
         document.getElementById('zone-list-card').classList.add('visible');
         document.getElementById('overlay').classList.add('visible');
       }
-
-      // ── SCHOOL CARD ──
       function showCard(school) {
         currentSchool = school;
         const zoneInfo = zones[school.zone];
@@ -432,34 +374,29 @@
         document.getElementById('info-card').classList.add('visible');
         document.getElementById('overlay').classList.add('visible');
       }
-
       function closeCard() {
         document.getElementById('info-card').classList.remove('visible');
         document.getElementById('overlay').classList.remove('visible');
       }
-
       function closeAll() {
         document.getElementById('info-card').classList.remove('visible');
         document.getElementById('zone-list-card').classList.remove('visible');
         document.getElementById('overlay').classList.remove('visible');
         currentSchool = null;
       }
-
       function openMaps() {
         if (currentSchool) window.open(currentSchool.maps, '_blank');
       }
-
-      // ── PREVIEW MODE ──
       function togglePreview() {
         previewMode = !previewMode;
         document.getElementById('preview-bg').classList.toggle('visible', previewMode);
         document.getElementById('detecting-screen').classList.toggle('hidden', previewMode);
         document.getElementById('preview-btn').textContent = previewMode ? '📷 AR Mode' : '🗺️ Pratonton';
       }
-
-      // ── AR TRACKING ──
       window.addEventListener('load', () => {
         buildPins();
+        document.getElementById('preview-bg').classList.add('visible');
+        document.getElementById('detecting-screen').classList.add('hidden');
         const target = document.getElementById('mural-target');
         if (target) {
           target.addEventListener('targetFound', () => {
