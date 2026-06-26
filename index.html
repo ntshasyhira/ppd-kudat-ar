@@ -8,7 +8,18 @@
     <script src="libs/mindar-image-aframe.prod.js"></script>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { overflow: hidden; font-family: sans-serif; }
+      body { overflow: hidden; font-family: sans-serif; background: #000; }
+
+      /* Preview mode background */
+      #preview-bg {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 1;
+        background: url('assets/mural-preview.png') center center / cover no-repeat;
+        display: none;
+      }
+      #preview-bg.visible { display: block; }
+
+      /* Top bar */
       #topbar {
         position: fixed; top: 0; left: 0; right: 0;
         z-index: 100;
@@ -27,26 +38,76 @@
       .tab-all { background: #1a1a1a; color: white; }
       .tab-pulau { background: #3B6D11; color: white; }
       .tab-pekan { background: #A32D2D; color: white; }
-      .tab-sikuati { background: #3C3489; color: white; }
+      .tab-sikuati { background: #BA5D0B; color: white; }
       .tab-matunggong { background: #BA7517; color: white; }
 
-      #info-card {
-        position: fixed; bottom: 0; left: 0; right: 0;
-        z-index: 200; background: white;
-        border-radius: 20px 20px 0 0;
+      /* Pins overlay */
+      #pins-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 50; pointer-events: none;
+      }
+      .pin {
+        position: absolute;
+        border-radius: 50%; border: 2px solid white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 9px; font-weight: 700; color: white;
+        cursor: pointer; pointer-events: all;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        transition: transform 0.15s;
+        width: 20px; height: 20px;
+      }
+      .pin:active { transform: translate(-50%, -50%) scale(0.88); }
+      .pin-pulau { background: #3B6D11; }
+      .pin-pekan { background: #A32D2D; }
+      .pin-sikuati { background: #BA5D0B; }
+      .pin-matunggong { background: #BA7517; }
+      .pin.hidden { display: none; }
+      .pin-cluster { width: 28px; height: 28px; font-size: 11px; border-width: 2.5px; }
+
+      /* Zone list card */
+      #zone-list-card {
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+        background: white; border-radius: 20px 20px 0 0;
         padding: 16px 20px 36px;
         box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
-        transform: translateY(100%);
-        transition: transform 0.3s ease;
+        transform: translateY(100%); transition: transform 0.3s ease;
+        max-height: 75vh; overflow-y: auto;
+      }
+      #zone-list-card.visible { transform: translateY(0); }
+
+      /* Info card */
+      #info-card {
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
+        background: white; border-radius: 20px 20px 0 0;
+        padding: 16px 20px 36px;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+        transform: translateY(100%); transition: transform 0.3s ease;
         max-height: 70vh; overflow-y: auto;
       }
       #info-card.visible { transform: translateY(0); }
-      .card-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 14px; }
-      .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+
+      .card-handle {
+        width: 40px; height: 4px; background: #ddd;
+        border-radius: 2px; margin: 0 auto 14px;
+      }
+      .card-header {
+        display: flex; justify-content: space-between;
+        align-items: flex-start; margin-bottom: 12px;
+      }
       .card-title { font-size: 15px; font-weight: 600; color: #1a1a1a; flex: 1; line-height: 1.3; }
-      .card-zone-badge { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 10px; color: white; margin-left: 8px; flex-shrink: 0; }
-      #close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #888; padding: 0 0 0 8px; flex-shrink: 0; }
-      .card-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
+      .card-zone-badge {
+        font-size: 10px; font-weight: 500; padding: 3px 8px;
+        border-radius: 10px; color: white; margin-left: 8px; flex-shrink: 0;
+      }
+      .close-btn {
+        background: none; border: none; font-size: 20px;
+        cursor: pointer; color: #888; padding: 0 0 0 8px; flex-shrink: 0;
+      }
+      .card-row {
+        display: flex; justify-content: space-between;
+        padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 12px;
+      }
       .card-row:last-of-type { border-bottom: none; }
       .card-label { color: #888; flex-shrink: 0; margin-right: 8px; }
       .card-value { font-weight: 500; color: #1a1a1a; text-align: right; }
@@ -57,52 +118,25 @@
         border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer;
       }
 
-      #zone-list-card {
-        position: fixed; bottom: 0; left: 0; right: 0;
-        z-index: 200; background: white;
-        border-radius: 20px 20px 0 0;
-        padding: 16px 20px 36px;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
-        transform: translateY(100%);
-        transition: transform 0.3s ease;
-        max-height: 75vh; overflow-y: auto;
+      .zone-list-header {
+        display: flex; justify-content: space-between;
+        align-items: center; margin-bottom: 10px;
       }
-      #zone-list-card.visible { transform: translateY(0); }
-      .zone-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
       .zone-list-title { font-size: 15px; font-weight: 600; color: #1a1a1a; }
-      .zone-list-count { font-size: 11px; color: #888; }
-      .zone-ketua { font-size: 11px; color: #555; margin-bottom: 12px; padding: 8px 10px; background: #f8f8f8; border-radius: 8px; }
-      .school-list-item {
+      .zone-ketua {
+        font-size: 11px; color: #555; margin-bottom: 12px;
+        padding: 8px 10px; background: #f8f8f8; border-radius: 8px;
+      }
+      .school-item {
         display: flex; align-items: center; gap: 10px;
         padding: 10px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer;
       }
-      .school-list-item:last-child { border-bottom: none; }
+      .school-item:last-child { border-bottom: none; }
       .school-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-      .school-list-name { font-size: 13px; color: #1a1a1a; flex: 1; }
-      .school-list-code { font-size: 11px; color: #888; }
-      .school-list-arrow { color: #ccc; font-size: 16px; }
+      .school-name { font-size: 13px; color: #1a1a1a; flex: 1; }
+      .school-code { font-size: 11px; color: #888; }
 
-      #pins-overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 50; pointer-events: none;
-      }
-      .pin {
-        position: absolute; width: 24px; height: 24px; border-radius: 50%;
-        border: 2.5px solid white; display: flex; align-items: center;
-        justify-content: center; font-size: 9px; font-weight: 600; color: white;
-        cursor: pointer; pointer-events: all;
-        transform: translate(-50%, -50%);
-        box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-        transition: transform 0.15s;
-      }
-      .pin:active { transform: translate(-50%, -50%) scale(0.88); }
-      .pin-pulau { background: #3B6D11; }
-      .pin-pekan { background: #A32D2D; }
-      .pin-sikuati { background: #3C3489; }
-      .pin-matunggong { background: #BA7517; }
-      .pin.hidden { display: none; }
-      .pin-cluster { font-size: 10px; width: 28px; height: 28px; }
-
+      /* Detecting screen */
       #detecting-screen {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 300; background: rgba(0,0,0,0.55);
@@ -117,14 +151,29 @@
       .detect-title { font-size: 15px; font-weight: 600; }
       .detect-sub { font-size: 11px; color: #bbb; margin-top: 4px; }
 
-      .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 150; display: none; }
-      .overlay.visible { display: block; }
+      /* Overlay backdrop */
+      #overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 150; display: none;
+      }
+      #overlay.visible { display: block; }
+
+      /* Preview mode toggle button */
+      #preview-btn {
+        position: fixed; bottom: 20px; right: 16px; z-index: 99;
+        background: rgba(0,0,0,0.6); color: white; border: none;
+        border-radius: 20px; padding: 6px 12px; font-size: 11px; cursor: pointer;
+      }
     </style>
   </head>
   <body>
 
+    <!-- Preview background (desktop testing) -->
+    <div id="preview-bg"></div>
+
+    <!-- Top bar -->
     <div id="topbar">
-      <h1>Sekolah Daerah Kudat</h1>
+      <h1>🗺️ Sekolah Daerah Kudat</h1>
       <div id="filter-tabs">
         <button class="tab tab-all active" onclick="filterZone('all')">Semua</button>
         <button class="tab tab-pulau" onclick="filterZone('pulau')">Pulau</button>
@@ -134,216 +183,241 @@
       </div>
     </div>
 
+    <!-- Detecting screen -->
     <div id="detecting-screen">
       <div class="detect-box">
         <div class="detect-icon">📷</div>
-        <div class="detect-title">Detecting Mural Map...</div>
-        <div class="detect-sub">Make sure the entire map is visible</div>
+        <div class="detect-title">Mengesan peta...</div>
+        <div class="detect-sub">Pastikan keseluruhan peta kelihatan</div>
       </div>
     </div>
 
+    <!-- AR Scene -->
     <a-scene
       mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: true;"
       color-space="sRGB" renderer="colorManagement: true"
-      vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       <a-entity mindar-image-target="targetIndex: 0" id="mural-target"></a-entity>
     </a-scene>
 
+    <!-- Pins -->
     <div id="pins-overlay"></div>
-    <div class="overlay" id="overlay" onclick="closeAll()"></div>
 
-    <!-- Zone list card -->
+    <!-- Overlay backdrop -->
+    <div id="overlay" onclick="closeAll()"></div>
+
+    <!-- Zone list -->
     <div id="zone-list-card">
       <div class="card-handle"></div>
       <div class="zone-list-header">
         <span class="zone-list-title" id="zone-list-title">-</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="zone-list-count" id="zone-list-count"></span>
-          <button id="close-zone-btn" onclick="closeAll()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;">✕</button>
-        </div>
+        <button class="close-btn" onclick="closeAll()">✕</button>
       </div>
       <div class="zone-ketua" id="zone-ketua"></div>
       <div id="school-list"></div>
     </div>
 
-    <!-- Individual school card -->
+    <!-- School info card -->
     <div id="info-card">
       <div class="card-handle"></div>
       <div class="card-header">
         <span class="card-title" id="card-name">-</span>
         <span class="card-zone-badge" id="card-zone-badge">-</span>
-        <button id="close-btn" onclick="closeCard()">✕</button>
+        <button class="close-btn" onclick="closeCard()">✕</button>
       </div>
-      <div class="card-row"><span class="card-label">Kod Sekolah</span><span class="card-value" id="card-code">-</span></div>
-      <div class="card-row"><span class="card-label">Zon</span><span class="card-value" id="card-zone">-</span></div>
-      <div class="card-row"><span class="card-label">Ketua Zon</span><span class="card-value" id="card-ketua">-</span></div>
+      <div class="card-row">
+        <span class="card-label">Kod Sekolah</span>
+        <span class="card-value" id="card-code">-</span>
+      </div>
+      <div class="card-row">
+        <span class="card-label">Zon</span>
+        <span class="card-value" id="card-zone">-</span>
+      </div>
+      <div class="card-row">
+        <span class="card-label">Ketua Zon</span>
+        <span class="card-value" id="card-ketua">-</span>
+      </div>
       <button id="maps-btn" onclick="openMaps()">📍 Buka dalam Google Maps</button>
     </div>
 
+    <!-- Preview toggle -->
+    <button id="preview-btn" onclick="togglePreview()">🗺️ Pratonton</button>
+
     <script>
       const zones = {
-        pulau: { name: "Pulau", color: "#3B6D11", ketua: "KASMAN BIN PANGALAMAN" },
-        pekan: { name: "Pekan", color: "#A32D2D", ketua: "YUSRIZAN BIN YUSOF" },
-        sikuati: { name: "Sikuati", color: "#3C3489", ketua: "INTAN MAHIRAH BINTI ABDUL RAHMAN" },
-        matunggong: { name: "Matunggong", color: "#BA7517", ketua: "HASRIANSHAH OMAR" }
+        pulau:      { name:"Pulau",      color:"#3B6D11", ketua:"KASMAN BIN PANGALAMAN" },
+        pekan:      { name:"Pekan",      color:"#A32D2D", ketua:"YUSRIZAN BIN YUSOF" },
+        sikuati:    { name:"Sikuati",    color:"#BA5D0B", ketua:"INTAN MAHIRAH BINTI ABDUL RAHMAN" },
+        matunggong: { name:"Matunggong", color:"#BA7517", ketua:"HASRIANSHAH OMAR" }
       };
 
       const schools = [
-        // PULAU (15 schools) - positions across top-right area of mural
-        { id:1, name:"SK Balambangan Banggi", code:"XBA5002", zone:"pulau", maps:"https://maps.google.com/?q=SK+Balambangan+Banggi", x:72, y:18 },
-        { id:2, name:"SK Laksian", code:"XBA5003", zone:"pulau", maps:"https://maps.google.com/?q=SK+Laksian+Banggi", x:78, y:25 },
-        { id:3, name:"SK Dogoton", code:"XBA5004", zone:"pulau", maps:"https://maps.google.com/?q=SK+Dogoton", x:68, y:30 },
-        { id:4, name:"SK Semayan Banggi", code:"XBA5011", zone:"pulau", maps:"https://maps.google.com/?q=SK+Semayan+Banggi", x:82, y:18 },
-        { id:5, name:"SK Kapitangan", code:"XBA5014", zone:"pulau", maps:"https://maps.google.com/?q=SK+Kapitangan", x:75, y:12 },
-        { id:6, name:"SK Karakit Banggi", code:"XBA5015", zone:"pulau", maps:"https://maps.google.com/?q=SK+Karakit+Banggi", x:85, y:22 },
-        { id:7, name:"SK Batu Layar", code:"XBA5016", zone:"pulau", maps:"https://maps.google.com/?q=SK+Batu+Layar", x:80, y:30 },
-        { id:8, name:"SK Tanjung Manawali", code:"XBA5017", zone:"pulau", maps:"https://maps.google.com/?q=SK+Tanjung+Manawali", x:88, y:15 },
-        { id:9, name:"SK Limbuak", code:"XBA5025", zone:"pulau", maps:"https://maps.google.com/?q=SK+Limbuak", x:70, y:22 },
-        { id:10, name:"SK Padang", code:"XBA5043", zone:"pulau", maps:"https://maps.google.com/?q=SK+Padang+Banggi", x:83, y:35 },
-        { id:11, name:"SK Palak", code:"XBA5071", zone:"pulau", maps:"https://maps.google.com/?q=SK+Palak+Banggi", x:76, y:38 },
-        { id:12, name:"SK Loktohog Banggi", code:"XBA5083", zone:"pulau", maps:"https://maps.google.com/?q=SK+Lok+Tohog+Banggi", x:88, y:28 },
-        { id:13, name:"SK Sabur", code:"XBA5095", zone:"pulau", maps:"https://maps.google.com/?q=SK+Sabur+Banggi", x:72, y:32 },
-        { id:14, name:"SK Pulau Tigabu", code:"XBA5097", zone:"pulau", maps:"https://maps.google.com/?q=SK+Pulau+Tigabu+Banggi", x:85, y:42 },
-        { id:15, name:"SMK Banggi", code:"XEA5021", zone:"pulau", maps:"https://maps.google.com/?q=SMK+Banggi", x:79, y:20 },
-
-        // PEKAN (25 schools) - positions around Kudat town area
-        { id:16, name:"SK Bangau Kudat", code:"XBA5005", zone:"pekan", maps:"https://maps.google.com/?q=SK+Bangau+Kudat", x:55, y:22 },
-        { id:17, name:"SK Pekan Kudat II", code:"XBA5007", zone:"pekan", maps:"https://maps.google.com/?q=SK+Pekan+Kudat+II", x:60, y:28 },
-        { id:18, name:"SK Gumandang", code:"XBA5010", zone:"pekan", maps:"https://maps.google.com/?q=SK+Gumandang+Kudat", x:58, y:18 },
-        { id:19, name:"SK Suangpai", code:"XBA5067", zone:"pekan", maps:"https://maps.google.com/?q=SK+Suangpai+Kudat", x:63, y:15 },
-        { id:20, name:"SK Tiga Papan Kudat", code:"XBA5076", zone:"pekan", maps:"https://maps.google.com/?q=SK+Tiga+Papan+Kudat", x:52, y:15 },
-        { id:21, name:"SK Landung Ayang", code:"XBA5099", zone:"pekan", maps:"https://maps.google.com/?q=SK+Landung+Ayang+Kudat", x:65, y:22 },
-        { id:22, name:"SK Lok Yuk Batu 1 Kudat", code:"XCA5023", zone:"pekan", maps:"https://maps.google.com/?q=SK+Lok+Yuk+Batu+1+Kudat", x:60, y:35 },
-        { id:23, name:"SK Lok Yuk Tamalang", code:"XCA5029", zone:"pekan", maps:"https://maps.google.com/?q=SK+Lok+Yuk+Tamalang+Kudat", x:65, y:40 },
-        { id:24, name:"SK St James", code:"XCA5063", zone:"pekan", maps:"https://maps.google.com/?q=SK+St+James+Kudat", x:62, y:32 },
-        { id:25, name:"SK St Peter Kudat", code:"XCA5064", zone:"pekan", maps:"https://maps.google.com/?q=SK+St+Peter+Kudat", x:67, y:30 },
-        { id:26, name:"SJK(C) Hwa Lian", code:"XCC5012", zone:"pekan", maps:"https://maps.google.com/?q=SJK+C+Hwa+Lian+Kudat", x:58, y:32 },
-        { id:27, name:"SK Tun Datu HJ Mustapha", code:"XBA5018", zone:"pekan", maps:"https://maps.google.com/?q=SK+Tun+Datu+Mustapha+Kudat", x:55, y:28 },
-        { id:28, name:"SK Muhibbah Kudat", code:"XBA5019", zone:"pekan", maps:"https://maps.google.com/?q=SK+Muhibbah+Kudat", x:62, y:25 },
-        { id:29, name:"SJK(C) Lok Yuk Pinangsoo", code:"XCC5031", zone:"pekan", maps:"https://maps.google.com/?q=SJK+C+Lok+Yuk+Pinangsoo+Kudat", x:55, y:35 },
-        { id:30, name:"SJK(C) Lok Yuk Batu 1", code:"XCC5034", zone:"pekan", maps:"https://maps.google.com/?q=SJK+C+Lok+Yuk+Batu+1+Kudat", x:58, y:38 },
-        { id:31, name:"SJK(C) Our Lady Immaculate", code:"XCC5042", zone:"pekan", maps:"https://maps.google.com/?q=SJK+C+Our+Lady+Immaculate+Kudat", x:63, y:38 },
-        { id:32, name:"SJK(C) Sacred Heart", code:"XCC5052", zone:"pekan", maps:"https://maps.google.com/?q=SJK+C+Sacred+Heart+Kudat", x:67, y:35 },
-        { id:33, name:"SJK(C) St Peter", code:"XCC5065", zone:"pekan", maps:"https://maps.google.com/?q=SJK+C+St+Peter+Kudat", x:65, y:28 },
-        { id:34, name:"SJK(C) Yuk Hwa Temalang", code:"XCC5080", zone:"pekan", maps:"https://maps.google.com/?q=SJK+C+Yuk+Hwa+Temalang+Kudat", x:60, y:42 },
-        { id:35, name:"SMK Kudat", code:"XEA5001", zone:"pekan", maps:"https://maps.google.com/?q=SMK+Kudat", x:68, y:25 },
-        { id:36, name:"SMK Kudat II", code:"XEA5023", zone:"pekan", maps:"https://maps.google.com/?q=SMK+Kudat+II", x:70, y:28 },
-        { id:37, name:"SMK Abd. Rahim II", code:"XEA5026", zone:"pekan", maps:"https://maps.google.com/?q=SMK+Abdul+Rahim+2+Kudat", x:70, y:35 },
-        { id:38, name:"SMK Abdul Rahim", code:"XEE5019", zone:"pekan", maps:"https://maps.google.com/?q=SMK+Abdul+Rahim+Kudat", x:68, y:40 },
-        { id:39, name:"SMK Lok Yuk Kudat", code:"XFE5036", zone:"pekan", maps:"https://maps.google.com/?q=SMK+Lok+Yuk+Kudat", x:63, y:45 },
-        { id:40, name:"SMK St Peter Kudat", code:"XFE5066", zone:"pekan", maps:"https://maps.google.com/?q=SMK+St+Peter+Kudat", x:67, y:45 },
-
-        // SIKUATI (17 schools) - middle-left area
-        { id:41, name:"SK Barambangon", code:"XBA5006", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Barambangon+Kudat", x:28, y:38 },
-        { id:42, name:"SK Kg Minyak", code:"XBA5013", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Kampung+Minyak+Kudat", x:32, y:42 },
-        { id:43, name:"SK Limau-Limauan", code:"XBA5024", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Limau+Limauan+Kudat", x:48, y:55 },
-        { id:44, name:"SK Lokoton", code:"XBA5028", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Lokoton+Kudat", x:38, y:50 },
-        { id:45, name:"SK Nangka Kudat", code:"XBA5041", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Nangka+Kudat", x:35, y:45 },
-        { id:46, name:"SK Perapat Laut", code:"XBA5046", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Perapat+Laut+Kudat", x:52, y:58 },
-        { id:47, name:"SK Sikuati", code:"XBA5061", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Sikuati", x:28, y:45 },
-        { id:48, name:"SK Terongkongan", code:"XBA5074", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Terongkongan+Laut+Kudat", x:22, y:48 },
-        { id:49, name:"SK Dualog", code:"XBA5088", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Dualog+Kudat", x:42, y:52 },
-        { id:50, name:"SK Parapat Darat", code:"XBA5089", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Parapat+Darat+Kudat", x:30, y:55 },
-        { id:51, name:"SK Dampirit", code:"XBA5098", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Dampirit+Kudat", x:25, y:52 },
-        { id:52, name:"SK Lajong", code:"XCA5022", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Lajong+Kudat", x:35, y:58 },
-        { id:53, name:"SK Lodung Kudat", code:"XCA5027", zone:"sikuati", maps:"https://maps.google.com/?q=SRK+Lodung+Kudat", x:45, y:58 },
-        { id:54, name:"SK Lok Yuk Sikuati", code:"XCA5030", zone:"sikuati", maps:"https://maps.google.com/?q=SK+Lok+Yuk+Sikuati", x:32, y:48 },
-        { id:55, name:"SMK Sikuati", code:"XEA5004", zone:"sikuati", maps:"https://maps.google.com/?q=SMK+Sikuati", x:25, y:42 },
-        { id:56, name:"SMK Sikuati II", code:"XEA5025", zone:"sikuati", maps:"https://maps.google.com/?q=SMK+Sikuati+II", x:28, y:52 },
-        { id:57, name:"Kolej Vokasional Kudat", code:"XHA5002", zone:"sikuati", maps:"https://maps.google.com/?q=Kolej+Vokasional+Kudat", x:40, y:45 },
-
-        // MATUNGGONG (13 schools) - bottom area
-        { id:58, name:"SK Pata", code:"XBA5008", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Pata+Kudat", x:25, y:72 },
-        { id:59, name:"SK Indarason Laut", code:"XBA5009", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Indarason+Laut+Kudat", x:30, y:78 },
-        { id:60, name:"SK Matunggong", code:"XBA5040", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Matunggong+Kudat", x:35, y:82 },
-        { id:61, name:"SK Pinawantai Kudat", code:"XBA5047", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Pinawantai+Kudat", x:28, y:85 },
-        { id:62, name:"SK Sebayan", code:"XBA5055", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Sebayan+Kudat", x:20, y:78 },
-        { id:63, name:"SK Lampaki Kudat", code:"XBA5091", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Lampaki+Kudat", x:22, y:85 },
-        { id:64, name:"SK Lotong", code:"XBA5092", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Lotong+Kudat", x:42, y:75 },
-        { id:65, name:"SK Panudahan", code:"XBA5093", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Panudahan+Kudat", x:38, y:80 },
-        { id:66, name:"SK Garau Kudat", code:"XBA5094", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Garau+Kudat", x:32, y:72 },
-        { id:67, name:"SK Bingolon Kudat", code:"XBA5096", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Bingolon+Kudat", x:18, y:72 },
-        { id:68, name:"SK Tinangol", code:"XCA5078", zone:"matunggong", maps:"https://maps.google.com/?q=SK+Tinangol+Kudat", x:45, y:80 },
-        { id:69, name:"SMK Pinawantai", code:"XEA5022", zone:"matunggong", maps:"https://maps.google.com/?q=SMK+Pinawantai+Kudat", x:25, y:80 },
-        { id:70, name:"SMK Matunggong", code:"XEA5024", zone:"matunggong", maps:"https://maps.google.com/?q=SMK+Matunggong+Kudat", x:38, y:88 },
+        // PULAU
+        { id:1,  name:"SK Balambangan Banggi",      code:"XBA5002", zone:"pulau",      x:62, y:22, maps:"https://maps.google.com/?q=SK+Balambangan+Banggi" },
+        { id:2,  name:"SK Laksian",                 code:"XBA5003", zone:"pulau",      x:66, y:18, maps:"https://maps.google.com/?q=SK+Laksian+Banggi" },
+        { id:3,  name:"SK Dogoton",                 code:"XBA5004", zone:"pulau",      x:70, y:25, maps:"https://maps.google.com/?q=SK+Dogoton" },
+        { id:4,  name:"SK Semayan Banggi",           code:"XBA5011", zone:"pulau",      x:74, y:20, maps:"https://maps.google.com/?q=SK+Semayan+Banggi" },
+        { id:5,  name:"SK Kapitangan",              code:"XBA5014", zone:"pulau",      x:78, y:15, maps:"https://maps.google.com/?q=SK+Kapitangan" },
+        { id:6,  name:"SK Karakit Banggi",          code:"XBA5015", zone:"pulau",      x:82, y:22, maps:"https://maps.google.com/?q=SK+Karakit+Banggi" },
+        { id:7,  name:"SK Batu Layar",              code:"XBA5016", zone:"pulau",      x:86, y:18, maps:"https://maps.google.com/?q=SK+Batu+Layar" },
+        { id:8,  name:"SK Tanjung Manawali",        code:"XBA5017", zone:"pulau",      x:80, y:28, maps:"https://maps.google.com/?q=SK+Tanjung+Manawali" },
+        { id:9,  name:"SK Limbuak",                 code:"XBA5025", zone:"pulau",      x:74, y:28, maps:"https://maps.google.com/?q=SK+Limbuak" },
+        { id:10, name:"SK Padang",                  code:"XBA5043", zone:"pulau",      x:86, y:30, maps:"https://maps.google.com/?q=SK+Padang+Banggi" },
+        { id:11, name:"SK Palak",                   code:"XBA5071", zone:"pulau",      x:82, y:35, maps:"https://maps.google.com/?q=SK+Palak+Banggi" },
+        { id:12, name:"SK Loktohog Banggi",         code:"XBA5083", zone:"pulau",      x:70, y:32, maps:"https://maps.google.com/?q=SK+Lok+Tohog+Banggi" },
+        { id:13, name:"SK Sabur",                   code:"XBA5095", zone:"pulau",      x:66, y:28, maps:"https://maps.google.com/?q=SK+Sabur+Banggi" },
+        { id:14, name:"SK Pulau Tigabu",            code:"XBA5097", zone:"pulau",      x:90, y:42, maps:"https://maps.google.com/?q=SK+Pulau+Tigabu+Banggi" },
+        { id:15, name:"SMK Banggi",                 code:"XEA5021", zone:"pulau",      x:78, y:22, maps:"https://maps.google.com/?q=SMK+Banggi" },
+        // PEKAN
+        { id:16, name:"SK Bangau Kudat",            code:"XBA5005", zone:"pekan",      x:44, y:22, maps:"https://maps.google.com/?q=SK+Bangau+Kudat" },
+        { id:17, name:"SK Pekan Kudat II",          code:"XBA5007", zone:"pekan",      x:50, y:25, maps:"https://maps.google.com/?q=SK+Pekan+Kudat+II" },
+        { id:18, name:"SK Gumandang",               code:"XBA5010", zone:"pekan",      x:54, y:18, maps:"https://maps.google.com/?q=SK+Gumandang+Kudat" },
+        { id:19, name:"SK Suangpai",                code:"XBA5067", zone:"pekan",      x:58, y:14, maps:"https://maps.google.com/?q=SK+Suangpai+Kudat" },
+        { id:20, name:"SK Tiga Papan Kudat",        code:"XBA5076", zone:"pekan",      x:48, y:14, maps:"https://maps.google.com/?q=SK+Tiga+Papan+Kudat" },
+        { id:21, name:"SK Landung Ayang",           code:"XBA5099", zone:"pekan",      x:56, y:22, maps:"https://maps.google.com/?q=SK+Landung+Ayang+Kudat" },
+        { id:22, name:"SK Lok Yuk Batu 1 Kudat",   code:"XCA5023", zone:"pekan",      x:52, y:30, maps:"https://maps.google.com/?q=SK+Lok+Yuk+Batu+1+Kudat" },
+        { id:23, name:"SK Lok Yuk Tamalang",        code:"XCA5029", zone:"pekan",      x:58, y:35, maps:"https://maps.google.com/?q=SK+Lok+Yuk+Tamalang+Kudat" },
+        { id:24, name:"SK St James",                code:"XCA5063", zone:"pekan",      x:54, y:35, maps:"https://maps.google.com/?q=SK+St+James+Kudat" },
+        { id:25, name:"SK St Peter Kudat",          code:"XCA5064", zone:"pekan",      x:60, y:30, maps:"https://maps.google.com/?q=SK+St+Peter+Kudat" },
+        { id:26, name:"SJK(C) Hwa Lian",           code:"XCC5012", zone:"pekan",      x:56, y:28, maps:"https://maps.google.com/?q=SJK+C+Hwa+Lian+Kudat" },
+        { id:27, name:"SK Tun Datu HJ Mustapha",   code:"XBA5018", zone:"pekan",      x:48, y:28, maps:"https://maps.google.com/?q=SK+Tun+Datu+Mustapha+Kudat" },
+        { id:28, name:"SK Muhibbah Kudat",          code:"XBA5019", zone:"pekan",      x:52, y:22, maps:"https://maps.google.com/?q=SK+Muhibbah+Kudat" },
+        { id:29, name:"SJK(C) Lok Yuk Pinangsoo",  code:"XCC5031", zone:"pekan",      x:46, y:32, maps:"https://maps.google.com/?q=SJK+C+Lok+Yuk+Pinangsoo+Kudat" },
+        { id:30, name:"SJK(C) Lok Yuk Batu 1",     code:"XCC5034", zone:"pekan",      x:50, y:38, maps:"https://maps.google.com/?q=SJK+C+Lok+Yuk+Batu+1+Kudat" },
+        { id:31, name:"SJK(C) Our Lady Immaculate", code:"XCC5042", zone:"pekan",     x:56, y:38, maps:"https://maps.google.com/?q=SJK+C+Our+Lady+Immaculate+Kudat" },
+        { id:32, name:"SJK(C) Sacred Heart",        code:"XCC5052", zone:"pekan",     x:60, y:38, maps:"https://maps.google.com/?q=SJK+C+Sacred+Heart+Kudat" },
+        { id:33, name:"SJK(C) St Peter",            code:"XCC5065", zone:"pekan",     x:62, y:28, maps:"https://maps.google.com/?q=SJK+C+St+Peter+Kudat" },
+        { id:34, name:"SJK(C) Yuk Hwa Temalang",   code:"XCC5080", zone:"pekan",     x:54, y:42, maps:"https://maps.google.com/?q=SJK+C+Yuk+Hwa+Temalang+Kudat" },
+        { id:35, name:"SMK Kudat",                  code:"XEA5001", zone:"pekan",     x:62, y:22, maps:"https://maps.google.com/?q=SMK+Kudat" },
+        { id:36, name:"SMK Kudat II",               code:"XEA5023", zone:"pekan",     x:64, y:28, maps:"https://maps.google.com/?q=SMK+Kudat+II" },
+        { id:37, name:"SMK Abd. Rahim II",          code:"XEA5026", zone:"pekan",     x:62, y:35, maps:"https://maps.google.com/?q=SMK+Abdul+Rahim+2+Kudat" },
+        { id:38, name:"SMK Abdul Rahim",            code:"XEE5019", zone:"pekan",     x:60, y:42, maps:"https://maps.google.com/?q=SMK+Abdul+Rahim+Kudat" },
+        { id:39, name:"SMK Lok Yuk Kudat",          code:"XFE5036", zone:"pekan",     x:56, y:45, maps:"https://maps.google.com/?q=SMK+Lok+Yuk+Kudat" },
+        { id:40, name:"SMK St Peter Kudat",         code:"XFE5066", zone:"pekan",     x:62, y:45, maps:"https://maps.google.com/?q=SMK+St+Peter+Kudat" },
+        // SIKUATI
+        { id:41, name:"SK Barambangon",             code:"XBA5006", zone:"sikuati",   x:22, y:38, maps:"https://maps.google.com/?q=SK+Barambangon+Kudat" },
+        { id:42, name:"SK Kg Minyak",               code:"XBA5013", zone:"sikuati",   x:26, y:42, maps:"https://maps.google.com/?q=SK+Kampung+Minyak+Kudat" },
+        { id:43, name:"SK Limau-Limauan",           code:"XBA5024", zone:"sikuati",   x:44, y:52, maps:"https://maps.google.com/?q=SK+Limau+Limauan+Kudat" },
+        { id:44, name:"SK Lokoton",                 code:"XBA5028", zone:"sikuati",   x:36, y:50, maps:"https://maps.google.com/?q=SK+Lokoton+Kudat" },
+        { id:45, name:"SK Nangka Kudat",            code:"XBA5041", zone:"sikuati",   x:32, y:45, maps:"https://maps.google.com/?q=SK+Nangka+Kudat" },
+        { id:46, name:"SK Perapat Laut",            code:"XBA5046", zone:"sikuati",   x:48, y:55, maps:"https://maps.google.com/?q=SK+Perapat+Laut+Kudat" },
+        { id:47, name:"SK Sikuati",                 code:"XBA5061", zone:"sikuati",   x:24, y:45, maps:"https://maps.google.com/?q=SK+Sikuati" },
+        { id:48, name:"SK Terongkongan",            code:"XBA5074", zone:"sikuati",   x:16, y:48, maps:"https://maps.google.com/?q=SK+Terongkongan+Laut+Kudat" },
+        { id:49, name:"SK Dualog",                  code:"XBA5088", zone:"sikuati",   x:38, y:52, maps:"https://maps.google.com/?q=SK+Dualog+Kudat" },
+        { id:50, name:"SK Parapat Darat",           code:"XBA5089", zone:"sikuati",   x:26, y:55, maps:"https://maps.google.com/?q=SK+Parapat+Darat+Kudat" },
+        { id:51, name:"SK Dampirit",                code:"XBA5098", zone:"sikuati",   x:20, y:52, maps:"https://maps.google.com/?q=SK+Dampirit+Kudat" },
+        { id:52, name:"SK Lajong",                  code:"XCA5022", zone:"sikuati",   x:30, y:58, maps:"https://maps.google.com/?q=SK+Lajong+Kudat" },
+        { id:53, name:"SK Lodung Kudat",            code:"XCA5027", zone:"sikuati",   x:42, y:56, maps:"https://maps.google.com/?q=SRK+Lodung+Kudat" },
+        { id:54, name:"SK Lok Yuk Sikuati",         code:"XCA5030", zone:"sikuati",   x:28, y:48, maps:"https://maps.google.com/?q=SK+Lok+Yuk+Sikuati" },
+        { id:55, name:"SMK Sikuati",                code:"XEA5004", zone:"sikuati",   x:20, y:42, maps:"https://maps.google.com/?q=SMK+Sikuati" },
+        { id:56, name:"SMK Sikuati II",             code:"XEA5025", zone:"sikuati",   x:24, y:52, maps:"https://maps.google.com/?q=SMK+Sikuati+II" },
+        { id:57, name:"Kolej Vokasional Kudat",     code:"XHA5002", zone:"sikuati",   x:34, y:45, maps:"https://maps.google.com/?q=Kolej+Vokasional+Kudat" },
+        // MATUNGGONG
+        { id:58, name:"SK Pata",                    code:"XBA5008", zone:"matunggong", x:20, y:68, maps:"https://maps.google.com/?q=SK+Pata+Kudat" },
+        { id:59, name:"SK Indarason Laut",          code:"XBA5009", zone:"matunggong", x:26, y:75, maps:"https://maps.google.com/?q=SK+Indarason+Laut+Kudat" },
+        { id:60, name:"SK Matunggong",              code:"XBA5040", zone:"matunggong", x:32, y:80, maps:"https://maps.google.com/?q=SK+Matunggong+Kudat" },
+        { id:61, name:"SK Pinawantai Kudat",        code:"XBA5047", zone:"matunggong", x:24, y:82, maps:"https://maps.google.com/?q=SK+Pinawantai+Kudat" },
+        { id:62, name:"SK Sebayan",                 code:"XBA5055", zone:"matunggong", x:16, y:75, maps:"https://maps.google.com/?q=SK+Sebayan+Kudat" },
+        { id:63, name:"SK Lampaki Kudat",           code:"XBA5091", zone:"matunggong", x:18, y:82, maps:"https://maps.google.com/?q=SK+Lampaki+Kudat" },
+        { id:64, name:"SK Lotong",                  code:"XBA5092", zone:"matunggong", x:40, y:72, maps:"https://maps.google.com/?q=SK+Lotong+Kudat" },
+        { id:65, name:"SK Panudahan",               code:"XBA5093", zone:"matunggong", x:34, y:78, maps:"https://maps.google.com/?q=SK+Panudahan+Kudat" },
+        { id:66, name:"SK Garau Kudat",             code:"XBA5094", zone:"matunggong", x:28, y:70, maps:"https://maps.google.com/?q=SK+Garau+Kudat" },
+        { id:67, name:"SK Bingolon Kudat",          code:"XBA5096", zone:"matunggong", x:14, y:70, maps:"https://maps.google.com/?q=SK+Bingolon+Kudat" },
+        { id:68, name:"SK Tinangol",                code:"XCA5078", zone:"matunggong", x:42, y:78, maps:"https://maps.google.com/?q=SK+Tinangol+Kudat" },
+        { id:69, name:"SMK Pinawantai",             code:"XEA5022", zone:"matunggong", x:22, y:78, maps:"https://maps.google.com/?q=SMK+Pinawantai+Kudat" },
+        { id:70, name:"SMK Matunggong",             code:"XEA5024", zone:"matunggong", x:36, y:86, maps:"https://maps.google.com/?q=SMK+Matunggong+Kudat" },
       ];
 
+      const CLUSTER_THRESHOLD = 6; // % distance to cluster pins
       let currentSchool = null;
-      let currentFilter = 'all';
+      let previewMode = false;
 
-      function buildPins() {
+      // ── CLUSTERING ──
+      function clusterPins(filtered) {
+        const clusters = [];
+        const used = new Set();
+        filtered.forEach((s, i) => {
+          if (used.has(s.id)) return;
+          const group = [s];
+          used.add(s.id);
+          filtered.forEach((t, j) => {
+            if (i === j || used.has(t.id)) return;
+            const dx = s.x - t.x, dy = s.y - t.y;
+            if (Math.sqrt(dx*dx + dy*dy) < CLUSTER_THRESHOLD) {
+              group.push(t);
+              used.add(t.id);
+            }
+          });
+          const cx = group.reduce((a,p) => a+p.x,0)/group.length;
+          const cy = group.reduce((a,p) => a+p.y,0)/group.length;
+          clusters.push({ schools: group, x: cx, y: cy, zone: s.zone });
+        });
+        return clusters;
+      }
+
+      // ── BUILD PINS ──
+      function buildPins(filter = 'all') {
         const overlay = document.getElementById('pins-overlay');
         overlay.innerHTML = '';
+        const filtered = filter === 'all' ? schools : schools.filter(s => s.zone === filter);
+        const clusters = clusterPins(filtered);
 
-        // Group by proximity for clustering
-        const zoneGroups = {};
-        schools.forEach(s => {
-          if (!zoneGroups[s.zone]) zoneGroups[s.zone] = [];
-          zoneGroups[s.zone].push(s);
-        });
-
-        // Show one cluster pin per zone
-        Object.keys(zoneGroups).forEach(zone => {
-          const group = zoneGroups[zone];
-          // Calculate center of zone
-          const cx = group.reduce((a,s) => a + s.x, 0) / group.length;
-          const cy = group.reduce((a,s) => a + s.y, 0) / group.length;
-
+        clusters.forEach(cluster => {
           const pin = document.createElement('div');
-          pin.className = `pin pin-${zone} pin-cluster`;
-          pin.id = `zone-pin-${zone}`;
-          pin.style.left = cx + '%';
-          pin.style.top = cy + '%';
-          pin.innerHTML = group.length;
-          pin.addEventListener('click', (e) => { e.stopPropagation(); showZoneList(zone); });
+          const isCluster = cluster.schools.length > 1;
+          pin.className = `pin pin-${cluster.zone}${isCluster ? ' pin-cluster' : ''}`;
+          pin.style.left = cluster.x + '%';
+          pin.style.top = cluster.y + '%';
+          pin.innerHTML = isCluster ? cluster.schools.length : '●';
+          pin.title = isCluster
+            ? `${cluster.schools.length} sekolah`
+            : cluster.schools[0].name;
+
+          pin.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isCluster) showZoneList(cluster.zone, cluster.schools);
+            else showCard(cluster.schools[0]);
+          });
           overlay.appendChild(pin);
         });
       }
 
+      // ── FILTER ──
       function filterZone(zone) {
-        currentFilter = zone;
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-${zone === 'all' ? 'all' : zone}`).classList.add('active');
-
-        Object.keys({ pulau:1, pekan:1, sikuati:1, matunggong:1 }).forEach(z => {
-          const pin = document.getElementById(`zone-pin-${z}`);
-          if (!pin) return;
-          if (zone === 'all' || z === zone) pin.classList.remove('hidden');
-          else pin.classList.add('hidden');
-        });
         closeAll();
+        buildPins(zone);
       }
 
-      function showZoneList(zone) {
-        const zoneSchools = schools.filter(s => s.zone === zone);
+      // ── ZONE LIST ──
+      function showZoneList(zone, list) {
         const zoneInfo = zones[zone];
-
         document.getElementById('zone-list-title').textContent = `Zon ${zoneInfo.name}`;
-        document.getElementById('zone-list-count').textContent = `${zoneSchools.length} sekolah`;
-        document.getElementById('zone-ketua').innerHTML = `<strong>Ketua Zon:</strong> ${zoneInfo.ketua}`;
-
-        const list = document.getElementById('school-list');
-        list.innerHTML = '';
-        zoneSchools.forEach(school => {
+        document.getElementById('zone-ketua').innerHTML =
+          `<strong>Ketua Zon:</strong> ${zoneInfo.ketua} &nbsp;·&nbsp; <strong>${list.length} sekolah</strong>`;
+        const ul = document.getElementById('school-list');
+        ul.innerHTML = '';
+        list.forEach(school => {
           const item = document.createElement('div');
-          item.className = 'school-list-item';
+          item.className = 'school-item';
           item.innerHTML = `
             <div class="school-dot" style="background:${zoneInfo.color}"></div>
             <div style="flex:1">
-              <div class="school-list-name">${school.name}</div>
-              <div class="school-list-code">${school.code}</div>
+              <div class="school-name">${school.name}</div>
+              <div class="school-code">${school.code}</div>
             </div>
-            <span class="school-list-arrow">›</span>
-          `;
+            <span style="color:#ccc;font-size:18px;">›</span>`;
           item.addEventListener('click', () => showCard(school));
-          list.appendChild(item);
+          ul.appendChild(item);
         });
-
         document.getElementById('zone-list-card').classList.add('visible');
         document.getElementById('overlay').classList.add('visible');
       }
 
+      // ── SCHOOL CARD ──
       function showCard(school) {
         currentSchool = school;
         const zoneInfo = zones[school.zone];
@@ -362,7 +436,6 @@
       function closeCard() {
         document.getElementById('info-card').classList.remove('visible');
         document.getElementById('overlay').classList.remove('visible');
-        currentSchool = null;
       }
 
       function closeAll() {
@@ -376,6 +449,15 @@
         if (currentSchool) window.open(currentSchool.maps, '_blank');
       }
 
+      // ── PREVIEW MODE ──
+      function togglePreview() {
+        previewMode = !previewMode;
+        document.getElementById('preview-bg').classList.toggle('visible', previewMode);
+        document.getElementById('detecting-screen').classList.toggle('hidden', previewMode);
+        document.getElementById('preview-btn').textContent = previewMode ? '📷 AR Mode' : '🗺️ Pratonton';
+      }
+
+      // ── AR TRACKING ──
       window.addEventListener('load', () => {
         buildPins();
         const target = document.getElementById('mural-target');
@@ -384,7 +466,8 @@
             document.getElementById('detecting-screen').classList.add('hidden');
           });
           target.addEventListener('targetLost', () => {
-            document.getElementById('detecting-screen').classList.remove('hidden');
+            if (!previewMode)
+              document.getElementById('detecting-screen').classList.remove('hidden');
           });
         }
       });
