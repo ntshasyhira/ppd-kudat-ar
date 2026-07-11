@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Pin Calibration Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #1a1a1a; color: white; height: 100vh; display: flex; flex-direction: column; }
+    #toolbar { background: #2a2a2a; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #444; flex-shrink: 0; flex-wrap: wrap; }
+    #toolbar h2 { font-size: 13px; font-weight: 600; }
+    #current-school { background: #3a3a3a; border-radius: 8px; padding: 6px 12px; font-size: 12px; flex: 1; min-width: 200px; }
+    #current-school .sname { font-weight: 600; font-size: 13px; }
+    #current-school .szone { font-size: 10px; opacity: 0.7; margin-top: 2px; }
+    #progress { font-size: 11px; opacity: 0.6; white-space: nowrap; }
+    button { padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; border: none; color: white; }
+    #btn-skip { background: #854F0B; }
+    #btn-undo { background: #555; }
+    #btn-export { background: #1a73e8; font-weight: 600; padding: 6px 14px; }
+    #map-container { flex: 1; position: relative; overflow: hidden; cursor: crosshair; background: #0d0d0d; }
+    #map-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+    #pins-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .placed-pin { position: absolute; transform: translate(-50%,-50%); width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+    .pin-label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.75); color: white; font-size: 8px; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }
+    #hint { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 12px; pointer-events: none; white-space: nowrap; }
+    #err-banner { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(180,30,30,0.92); padding: 10px 18px; border-radius: 10px; font-size: 12px; display: none; z-index: 60; }
+    #err-banner.visible { display: block; }
+    #modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; }
+    #modal.visible { display: flex; }
+    #modal-box { background: #2a2a2a; border-radius: 12px; padding: 24px; max-width: 420px; width: 90%; text-align: center; }
+    #modal-box h3 { margin-bottom: 8px; }
+    #modal-box p { font-size: 12px; opacity: 0.7; margin-bottom: 16px; line-height: 1.6; }
+    .stat { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
+    #modal-stats { background: #1a1a1a; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+    #btn-dl { background: #4CAF50; width: 100%; padding: 12px; font-size: 14px; font-weight: 600; margin-bottom: 8px; border-radius: 8px; border: none; color: white; cursor: pointer; }
+    #btn-close { background: #555; }
+  </style>
+</head>
+<body>
+<div id="toolbar">
+  <h2>📍 Calibration Tool</h2>
+  <div id="current-school">
+    <div class="sname" id="sname">Loading...</div>
+    <div class="szone" id="szone"></div>
+  </div>
+  <div id="progress">0 / 70</div>
+  <button id="btn-skip">Skip ›</button>
+  <button id="btn-undo">↩ Undo</button>
+  <button id="btn-export">⬇ Download coords.json</button>
+</div>
+<div id="map-container">
+  <div id="err-banner"></div>
+  <img id="map-img" src="assets/map-extracted.png" alt="Kudat Map"/>
+  <div id="pins-layer"></div>
+  <div id="hint">Click to place: <strong id="hint-name">-</strong></div>
+</div>
+<div id="modal">
+  <div id="modal-box">
+    <h3>⬇ Download coords.json</h3>
+    <p>Save this file into your <strong>assets/</strong> folder. The AR map will automatically use these coordinates — no need to touch index.html!</p>
+    <div id="modal-stats">
+      <div class="stat"><span>✅ Pins placed</span><span id="n-placed">0</span></div>
+      <div class="stat"><span>⏭ Skipped (will use center)</span><span id="n-skipped">0</span></div>
+      <div class="stat"><span>📍 Total</span><span>70</span></div>
+    </div>
+    <button id="btn-dl">⬇ Download coords.json</button>
+    <button id="btn-close">Back to calibration</button>
+  </div>
+</div>
+<script>
+var zoneColors = { pulau:'#3B6D11', pekan:'#A32D2D', sikuati:'#BA5D0B', matunggong:'#BA7517' };
+var zoneNames  = { pulau:'Pulau', pekan:'Pekan', sikuati:'Sikuati', matunggong:'Matunggong' };
+
+var schools = [
+  {id:1,  name:"SK Balambangan Banggi",      code:"XBA5002", zone:"pulau"},
+  {id:2,  name:"SK Laksian",                 code:"XBA5003", zone:"pulau"},
+  {id:3,  name:"SK Dogoton",                 code:"XBA5004", zone:"pulau"},
+  {id:4,  name:"SK Semayan Banggi",          code:"XBA5011", zone:"pulau"},
+  {id:5,  name:"SK Kapitangan",              code:"XBA5014", zone:"pulau"},
+  {id:6,  name:"SK Karakit Banggi",          code:"XBA5015", zone:"pulau"},
+  {id:7,  name:"SK Batu Layar",              code:"XBA5016", zone:"pulau"},
+  {id:8,  name:"SK Tanjung Manawali",        code:"XBA5017", zone:"pulau"},
+  {id:9,  name:"SK Limbuak",                 code:"XBA5025", zone:"pulau"},
+  {id:10, name:"SK Padang",                  code:"XBA5043", zone:"pulau"},
+  {id:11, name:"SK Palak",                   code:"XBA5071", zone:"pulau"},
+  {id:12, name:"SK Loktohog Banggi",         code:"XBA5083", zone:"pulau"},
+  {id:13, name:"SK Sabur",                   code:"XBA5095", zone:"pulau"},
+  {id:14, name:"SK Pulau Tigabu",            code:"XBA5097", zone:"pulau"},
+  {id:15, name:"SMK Banggi",                 code:"XEA5021", zone:"pulau"},
+  {id:16, name:"SK Bangau Kudat",            code:"XBA5005", zone:"pekan"},
+  {id:17, name:"SK Pekan Kudat II",          code:"XBA5007", zone:"pekan"},
+  {id:18, name:"SK Gumandang",               code:"XBA5010", zone:"pekan"},
+  {id:19, name:"SK Suangpai",                code:"XBA5067", zone:"pekan"},
+  {id:20, name:"SK Tiga Papan Kudat",        code:"XBA5076", zone:"pekan"},
+  {id:21, name:"SK Landung Ayang",           code:"XBA5099", zone:"pekan"},
+  {id:22, name:"SK Lok Yuk Batu 1 Kudat",   code:"XCA5023", zone:"pekan"},
+  {id:23, name:"SK Lok Yuk Tamalang",        code:"XCA5029", zone:"pekan"},
+  {id:24, name:"SK St James",                code:"XCA5063", zone:"pekan"},
+  {id:25, name:"SK St Peter Kudat",          code:"XCA5064", zone:"pekan"},
+  {id:26, name:"SJK(C) Hwa Lian",           code:"XCC5012", zone:"pekan"},
+  {id:27, name:"SK Tun Datu HJ Mustapha",   code:"XBA5018", zone:"pekan"},
+  {id:28, name:"SK Muhibbah Kudat",          code:"XBA5019", zone:"pekan"},
+  {id:29, name:"SJK(C) Lok Yuk Pinangsoo",  code:"XCC5031", zone:"pekan"},
+  {id:30, name:"SJK(C) Lok Yuk Batu 1",     code:"XCC5034", zone:"pekan"},
+  {id:31, name:"SJK(C) Our Lady Immaculate", code:"XCC5042", zone:"pekan"},
+  {id:32, name:"SJK(C) Sacred Heart",        code:"XCC5052", zone:"pekan"},
+  {id:33, name:"SJK(C) St Peter",            code:"XCC5065", zone:"pekan"},
+  {id:34, name:"SJK(C) Yuk Hwa Temalang",   code:"XCC5080", zone:"pekan"},
+  {id:35, name:"SMK Kudat",                  code:"XEA5001", zone:"pekan"},
+  {id:36, name:"SMK Kudat II",               code:"XEA5023", zone:"pekan"},
+  {id:37, name:"SMK Abd. Rahim II",          code:"XEA5026", zone:"pekan"},
+  {id:38, name:"SMK Abdul Rahim",            code:"XEE5019", zone:"pekan"},
+  {id:39, name:"SMK Lok Yuk Kudat",          code:"XFE5036", zone:"pekan"},
+  {id:40, name:"SMK St Peter Kudat",         code:"XFE5066", zone:"pekan"},
+  {id:41, name:"SK Barambangon",             code:"XBA5006", zone:"sikuati"},
+  {id:42, name:"SK Kg Minyak",               code:"XBA5013", zone:"sikuati"},
+  {id:43, name:"SK Limau-Limauan",           code:"XBA5024", zone:"sikuati"},
+  {id:44, name:"SK Lokoton",                 code:"XBA5028", zone:"sikuati"},
+  {id:45, name:"SK Nangka Kudat",            code:"XBA5041", zone:"sikuati"},
+  {id:46, name:"SK Perapat Laut",            code:"XBA5046", zone:"sikuati"},
+  {id:47, name:"SK Sikuati",                 code:"XBA5061", zone:"sikuati"},
+  {id:48, name:"SK Terongkongan",            code:"XBA5074", zone:"sikuati"},
+  {id:49, name:"SK Dualog",                  code:"XBA5088", zone:"sikuati"},
+  {id:50, name:"SK Parapat Darat",           code:"XBA5089", zone:"sikuati"},
+  {id:51, name:"SK Dampirit",                code:"XBA5098", zone:"sikuati"},
+  {id:52, name:"SK Lajong",                  code:"XCA5022", zone:"sikuati"},
+  {id:53, name:"SK Lodung Kudat",            code:"XCA5027", zone:"sikuati"},
+  {id:54, name:"SK Lok Yuk Sikuati",         code:"XCA5030", zone:"sikuati"},
+  {id:55, name:"SMK Sikuati",                code:"XEA5004", zone:"sikuati"},
+  {id:56, name:"SMK Sikuati II",             code:"XEA5025", zone:"sikuati"},
+  {id:57, name:"Kolej Vokasional Kudat",     code:"XHA5002", zone:"sikuati"},
+  {id:58, name:"SK Pata",                    code:"XBA5008", zone:"matunggong"},
+  {id:59, name:"SK Indarason Laut",          code:"XBA5009", zone:"matunggong"},
+  {id:60, name:"SK Matunggong",              code:"XBA5040", zone:"matunggong"},
+  {id:61, name:"SK Pinawantai Kudat",        code:"XBA5047", zone:"matunggong"},
+  {id:62, name:"SK Sebayan",                 code:"XBA5055", zone:"matunggong"},
+  {id:63, name:"SK Lampaki Kudat",           code:"XBA5091", zone:"matunggong"},
+  {id:64, name:"SK Lotong",                  code:"XBA5092", zone:"matunggong"},
+  {id:65, name:"SK Panudahan",               code:"XBA5093", zone:"matunggong"},
+  {id:66, name:"SK Garau Kudat",             code:"XBA5094", zone:"matunggong"},
+  {id:67, name:"SK Bingolon Kudat",          code:"XBA5096", zone:"matunggong"},
+  {id:68, name:"SK Tinangol",                code:"XCA5078", zone:"matunggong"},
+  {id:69, name:"SMK Pinawantai",             code:"XEA5022", zone:"matunggong"},
+  {id:70, name:"SMK Matunggong",             code:"XEA5024", zone:"matunggong"}
+];
+
+var currentIdx = 0;
+var results = {};
+var skipped = new Set();
+var imgReady = false;
+var imgRatio = 4/3;
+
+var mapImg = document.getElementById('map-img');
+
+mapImg.addEventListener('load', function() {
+  if (mapImg.naturalWidth > 0) {
+    imgRatio = mapImg.naturalWidth / mapImg.naturalHeight;
+    imgReady = true;
+    document.getElementById('err-banner').classList.remove('visible');
+  }
+});
+mapImg.addEventListener('error', function() {
+  var b = document.getElementById('err-banner');
+  b.textContent = 'Cannot load assets/map-extracted.png — make sure the file is in your assets/ folder!';
+  b.classList.add('visible');
+});
+if (mapImg.complete && mapImg.naturalWidth > 0) {
+  imgRatio = mapImg.naturalWidth / mapImg.naturalHeight;
+  imgReady = true;
+}
+
+function getBounds() {
+  var c = document.getElementById('map-container').getBoundingClientRect();
+  var cr = c.width / c.height;
+  var rW, rH, oX, oY;
+  if (cr > imgRatio) {
+    rH = c.height; rW = rH * imgRatio;
+    oX = (c.width - rW) / 2; oY = 0;
+  } else {
+    rW = c.width; rH = rW / imgRatio;
+    oX = 0; oY = (c.height - rH) / 2;
+  }
+  return {rW:rW, rH:rH, oX:oX, oY:oY};
+}
+
+function updateUI() {
+  if (currentIdx >= schools.length) {
+    document.getElementById('sname').textContent = 'All done!';
+    document.getElementById('szone').textContent = 'Click Download coords.json';
+    document.getElementById('hint-name').textContent = 'Done';
+    document.getElementById('progress').textContent = Object.keys(results).length + ' / 70';
+    return;
+  }
+  var s = schools[currentIdx];
+  document.getElementById('sname').textContent = s.name;
+  document.getElementById('szone').textContent = zoneNames[s.zone] + ' · ' + s.code;
+  document.getElementById('hint-name').textContent = s.name;
+  document.getElementById('progress').textContent = (currentIdx+1) + ' / 70';
+}
+
+document.getElementById('map-container').addEventListener('click', function(e) {
+  if (!imgReady) {
+    var b = document.getElementById('err-banner');
+    b.textContent = 'Image not loaded yet!';
+    b.classList.add('visible');
+    return;
+  }
+  if (currentIdx >= schools.length) return;
+  var rect = this.getBoundingClientRect();
+  var bd = getBounds();
+  var cx = e.clientX - rect.left - bd.oX;
+  var cy = e.clientY - rect.top - bd.oY;
+  if (cx < 0 || cy < 0 || cx > bd.rW || cy > bd.rH) return;
+
+  var xp = parseFloat(((cx / bd.rW) * 100).toFixed(2));
+  var yp = parseFloat(((cy / bd.rH) * 100).toFixed(2));
+  var s = schools[currentIdx];
+  results[s.id] = {x: xp, y: yp};
+
+  var layer = document.getElementById('pins-layer');
+  var pin = document.createElement('div');
+  pin.className = 'placed-pin';
+  pin.id = 'pin-' + s.id;
+  pin.style.left = (bd.oX + cx) + 'px';
+  pin.style.top = (bd.oY + cy) + 'px';
+  pin.style.background = zoneColors[s.zone];
+  pin.innerHTML = '<div class="pin-label">' + s.name + '</div>';
+  layer.appendChild(pin);
+  currentIdx++;
+  updateUI();
+});
+
+document.getElementById('btn-skip').addEventListener('click', function() {
+  if (currentIdx >= schools.length) return;
+  skipped.add(schools[currentIdx].id);
+  currentIdx++;
+  updateUI();
+});
+
+document.getElementById('btn-undo').addEventListener('click', function() {
+  if (currentIdx === 0) return;
+  currentIdx--;
+  var s = schools[currentIdx];
+  delete results[s.id];
+  skipped.delete(s.id);
+  var pin = document.getElementById('pin-' + s.id);
+  if (pin) pin.remove();
+  updateUI();
+});
+
+document.getElementById('btn-export').addEventListener('click', function() {
+  document.getElementById('n-placed').textContent = Object.keys(results).length;
+  document.getElementById('n-skipped').textContent = skipped.size;
+  document.getElementById('modal').classList.add('visible');
+});
+
+document.getElementById('btn-close').addEventListener('click', function() {
+  document.getElementById('modal').classList.remove('visible');
+});
+
+document.getElementById('btn-dl').addEventListener('click', function() {
+  var coords = schools.map(function(s) {
+    var r = results[s.id];
+    return { id: s.id, x: r ? r.x : 50, y: r ? r.y : 50 };
+  });
+  var json = JSON.stringify(coords, null, 2);
+  var blob = new Blob([json], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'coords.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  this.textContent = 'Downloaded!';
+  var btn = this;
+  setTimeout(function() { btn.textContent = 'Download coords.json'; }, 2500);
+});
+
+updateUI();
+</script>
+</body>
+</html>
